@@ -8,17 +8,28 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            platform: windows-x64
+          - runner: ubuntu-22.04
+            platform: linux-x86_64
+          - runner: macos-15
+            platform: macos-arm64
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev \
-            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev mesa-vulkan-drivers
+            libxi-dev libgtk-3-dev libfontconfig1-dev libfreetype-dev libgl1-mesa-dev libasound2-dev mesa-vulkan-drivers
 
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
 
@@ -27,11 +38,21 @@ jobs:
       - name: Build release
         run: cargo build --release
 
-      - name: Upload executables
+      - name: Archive Windows executables
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path target/release/wordcraft.exe, target/release/wordcraft-cli.exe -DestinationPath wordcraft-windows-x64.zip
+
+      - name: Archive Unix executables
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: tar -C target/release -czf "wordcraft-$PLATFORM.tar.gz" wordcraft wordcraft-cli
+
+      - name: Upload archive
         uses: actions/upload-artifact@v4
         with:
-          name: wordcraft-linux-release
-          path: |
-            target/release/wordcraft
-            target/release/wordcraft-cli
+          name: wordcraft-${{ matrix.platform }}-release
+          path: wordcraft-${{ matrix.platform }}.*
           if-no-files-found: error
