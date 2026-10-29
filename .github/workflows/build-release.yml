@@ -6,8 +6,25 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: unsigned-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: version
+        shell: bash
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: version
     strategy:
       fail-fast: false
       matrix:
@@ -23,6 +40,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Checkout translations
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Phattaraphon-ADMD/craft-i18n
+          ref: main
+          path: craft-i18n
+
       - name: Install Linux build dependencies
         if: runner.os == 'Linux'
         run: |
@@ -37,22 +61,60 @@ jobs:
 
       - name: Build release
         run: cargo build --release
+        env:
+          CRAFT_I18N_DIR: ${{ github.workspace }}/craft-i18n
+          CRAFT_I18N_REQUIRED: "1"
 
       - name: Archive Windows executables
         if: runner.os == 'Windows'
         shell: pwsh
-        run: Compress-Archive -Path target/release/wordcraft.exe, target/release/wordcraft-cli.exe -DestinationPath wordcraft-windows-x64.zip
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+        run: Compress-Archive -Path target/release/wordcraft.exe, target/release/wordcraft-cli.exe -DestinationPath "wordcraft-$env:VERSION-$env:PLATFORM.zip"
 
       - name: Archive Unix executables
         if: runner.os != 'Windows'
         shell: bash
         env:
           PLATFORM: ${{ matrix.platform }}
-        run: tar -C target/release -czf "wordcraft-$PLATFORM.tar.gz" wordcraft wordcraft-cli
+          VERSION: ${{ needs.version.outputs.version }}
+        run: tar -C target/release -czf "wordcraft-$VERSION-$PLATFORM.tar.gz" wordcraft wordcraft-cli
 
       - name: Upload archive
         uses: actions/upload-artifact@v4
         with:
           name: wordcraft-${{ matrix.platform }}-release
-          path: wordcraft-${{ matrix.platform }}.*
+          path: wordcraft-${{ needs.version.outputs.version }}-${{ matrix.platform }}.*
           if-no-files-found: error
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: wordcraft-*-release
+          path: release-assets
+          merge-multiple: true
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "::error::Tag $tag already exists; bump the version before creating a release."
+            exit 1
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then exit "$status"; fi
+          fi
+          prerelease=()
+          if [[ "$VERSION" == *-* ]]; then prerelease+=(--prerelease); fi
+          gh release create "$tag" release-assets/* --target "$GITHUB_SHA" --title "WordCraft $tag" --notes "These binaries are unsigned and are not notarized." --generate-notes "${prerelease[@]}"
