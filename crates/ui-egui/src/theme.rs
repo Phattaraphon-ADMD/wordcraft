@@ -954,6 +954,13 @@ mod tests {
         assert!(defs.families[&egui::FontFamily::Proportional].last().is_some_and(|n| n.starts_with("fallback ")));
     }
 
+    #[test]
+    fn thai_fallback_tolerates_missing_system_fonts() {
+        let thai = "ภาษาไทย";
+        assert!(thai.chars().all(|character| !super::caption_char_covered(character)));
+        assert!(super::faces_for_preedit(thai, &[], super::caption_char_covered, |_| None).is_empty());
+    }
+
     /// A file name in a script Inter lacks (Hebrew, Arabic, …) is drawn in the window caption,
     /// which uses the semibold face. egui paints a missing glyph as `?`, so the caption borrows
     /// one document fallback face. CJK stays with the CJK UI font: those files are too large to

@@ -390,14 +390,14 @@ fn untranslated_interface_text() {
 /// strings with no translation (the missing bucket, which translators fill in craft-i18n) and those
 /// whose translation is the English itself (kept English, not counted as translated). A missing
 /// translation falls back to English, so the report never fails; without embedded catalogs
-/// (`CRAFT_I18N_DIR` unset) it is skipped. The strings are the ones the audit saw looked up, the
+/// it is skipped. The strings are the ones the audit saw looked up, the
 /// ribbon tabs, every command's label and ribbon location, the File › Home greetings, every reason
 /// a command gives for being off (#2678) and the equation gallery's labels (shown in menus the
 /// audit doesn't open one by one). Numbered style names go through a template.
 fn report_catalog_gaps(mut keys: std::collections::BTreeSet<String>) {
     use wordcraft_engine::math_gallery::{BUILT_INS, STRUCTURES, SYMBOL_SETS};
     if super::CRAFT_I18N.is_empty() {
-        eprintln!("missing-translation report skipped: built without craft-i18n (set CRAFT_I18N_DIR to a craft-i18n checkout)");
+        eprintln!("missing-translation report skipped: built without craft-i18n catalogs");
         return;
     }
     let problems = super::I18N.check_all();

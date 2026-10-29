@@ -9,11 +9,9 @@
 //!
 //! A missing or malformed file gives empty tables (or no names) and a warning.
 //!
-//! - `CRAFT_I18N_DIR`, a craft-i18n checkout (storytold/craft-i18n, at the SHA in
-//!   `craft-i18n.rev`): `craft_i18n.rs` holds `CRAFT_I18N`, one (locale, shared catalog, WordCraft
-//!   catalog) entry per locale that has a `wordcraft.tsv`. Unset, or not a checkout (a warning),
-//!   it is empty and the interface is English only; with `CRAFT_I18N_REQUIRED=1` (releases) that
-//!   is an error instead. Recipe: craft-i18n's `docs/integration.md`.
+//! - `CRAFT_I18N_DIR` points to a craft-i18n checkout supplying interface catalogs. A missing
+//!   or invalid catalog directory yields an English-only interface, or an error when
+//!   `CRAFT_I18N_REQUIRED=1`.
 
 use std::fmt::Write as _;
 
@@ -40,13 +38,12 @@ fn main() {
 /// The catalog this app reads in each locale: `locales/<locale>/wordcraft.tsv`.
 const APP_CATALOG: &str = "wordcraft.tsv";
 
-/// `CRAFT_I18N` from `CRAFT_I18N_DIR`: the `Embedded` list the craft-i18n crate reads.
+/// `CRAFT_I18N` from `CRAFT_I18N_DIR`.
 fn craft_i18n() -> String {
     println!("cargo::rerun-if-env-changed=CRAFT_I18N_DIR");
     println!("cargo::rerun-if-env-changed=CRAFT_I18N_REQUIRED");
     let required = std::env::var("CRAFT_I18N_REQUIRED").is_ok_and(|v| v.trim() == "1");
-    let entries = match std::env::var_os("CRAFT_I18N_DIR").filter(|d| !d.is_empty()) {
-        // Not canonicalized: on Windows that gives `\\?\C:\…`, which `include_str!` can't read.
+    let entries = match std::env::var_os("CRAFT_I18N_DIR").filter(|dir| !dir.is_empty()) {
         Some(dir) => match locales(&std::path::PathBuf::from(dir).join("locales")) {
             Ok(entries) => entries,
             Err(e) => {

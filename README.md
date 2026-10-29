@@ -140,6 +140,21 @@ cargo run --release -p wordcraft -- --sample        # the desktop app with the s
 cargo run --release -p wordcraft -- report.docx     # open a document
 ```
 
+Interface catalogs are an external [craft-i18n](https://github.com/Phattaraphon-ADMD/craft-i18n) checkout.
+Set `CRAFT_I18N_DIR` to its absolute path before building; without it the interface is English only.
+For example, with a sibling checkout in Windows Git Bash:
+
+```sh
+export CRAFT_I18N_DIR="$(cd ../craft-i18n && pwd -W)"
+cargo run --release -p wordcraft -- --sample
+```
+
+Alternatively, run `make` in Git Bash to launch the sample with the sibling checkout. Set
+`CRAFT_I18N_DIR` first to use a different checkout.
+
+The local Thai catalog is a partial AI-drafted translation awaiting native-speaker review; it is
+not present in the pinned upstream catalogs used for official releases and Flatpak.
+
 Command line:
 
 ```sh

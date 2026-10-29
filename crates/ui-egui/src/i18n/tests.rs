@@ -6,8 +6,7 @@ fn lang(code: &str) -> Lang {
     Lang::from_code(code).unwrap_or_else(|| panic!("{code} registered"))
 }
 
-/// Skips a test that needs the embedded catalogs when none were embedded (`CRAFT_I18N_DIR`
-/// unset): the interface is then English only.
+/// Skips a test that needs embedded catalogs when the catalog directory is unavailable.
 macro_rules! needs_catalogs {
     () => {
         if !catalogs_embedded() {
@@ -147,7 +146,7 @@ fn the_language_setting_is_a_ui_command_and_persists() {
     let r = app.run("ui.language", serde_json::json!({"value": "ZH-HANT"})).unwrap();
     assert_eq!(app.ui.language, "zh-hant");
     assert_eq!(r["effective"], "zh-hant");
-    assert!(r["available"].as_array().is_some_and(|a| a.len() == LANGUAGES.len()));
+    assert!(r["available"].as_array().is_some_and(|a| a.len() == Lang::all().count()));
     assert!(app.run("ui.language", serde_json::json!({"value": "xx"})).is_err());
     assert_eq!(app.ui.language, "zh-hant", "an unknown code keeps the setting");
     let saved = serde_json::to_string(&app.ui).unwrap();
@@ -1139,13 +1138,30 @@ fn the_languages_offered_are_the_embedded_ones_of_the_list() {
         assert_eq!(tr(Lang::EN, "File"), "File");
         return;
     }
-    let listed: Vec<&str> = LANGUAGES.iter().map(|l| l.code).collect();
-    assert_eq!(all, listed, "every language WordCraft lists has its catalog in craft-i18n");
+    let listed: Vec<&str> =
+        LANGUAGES.iter().filter(|info| info.code == "en" || CRAFT_I18N.iter().any(|(code, ..)| *code == info.code)).map(|l| l.code).collect();
+    assert_eq!(all, listed, "only languages with embedded catalogs are offered");
     assert!(Lang::from_code("pseudo").is_none(), "the pseudo locale is never a setting");
 }
 
-/// The flatpak manifest builds with the craft-i18n commit `craft-i18n.rev` pins (CI and releases
-/// read the file; the manifest has to name it itself).
+#[test]
+fn thai_locales_and_saved_preference() {
+    let Some(thai) = Lang::from_code("th") else { return };
+    for tag in ["th", "th-TH", "th_TH.UTF-8"] {
+        assert_eq!(lang_from_tag(tag), Some(thai), "{tag}");
+    }
+    let mut app = crate::WordApp::new(wordcraft_engine::Session::new(wordcraft_doc::Document::new()), Default::default());
+    let before = serde_json::to_value(&app.session.doc).unwrap();
+    let result = app.run("ui.language", serde_json::json!({"value": "TH"})).unwrap();
+    assert_eq!(result["effective"], "th");
+    assert_eq!(thai.name(), "ไทย");
+    assert!(has(thai, "File"));
+    assert_eq!(serde_json::to_value(&app.session.doc).unwrap(), before);
+    let saved = serde_json::to_string(&app.ui).unwrap();
+    let restored: crate::UiState = serde_json::from_str(&saved).unwrap();
+    assert_eq!(Lang::from_pref(&restored.language), thai);
+}
+
 #[test]
 fn the_flatpak_manifest_pins_the_craft_i18n_rev() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -1153,9 +1169,9 @@ fn the_flatpak_manifest_pins_the_craft_i18n_rev() {
     let rev = rev.trim();
     assert!(rev.len() == 40 && rev.bytes().all(|b| b.is_ascii_hexdigit()), "craft-i18n.rev holds one full SHA: {rev:?}");
     let manifest = std::fs::read_to_string(root.join("packaging/linux/flatpak/ai.storyteller.wordcraft.yml")).unwrap();
-    let source = manifest.split("url: https://github.com/storytold/craft-i18n").nth(1).expect("a craft-i18n git source");
+    let source = manifest.split("url: https://github.com/Phattaraphon-ADMD/craft-i18n").nth(1).expect("a craft-i18n git source");
     let source = source.split("- type:").next().unwrap_or(source);
-    let commit = source.lines().find_map(|l| l.trim().strip_prefix("commit:")).expect("the craft-i18n source pins a commit");
+    let commit = source.lines().find_map(|line| line.trim().strip_prefix("commit:")).expect("the craft-i18n source pins a commit");
     assert_eq!(commit.trim().trim_matches(['\'', '"']), rev);
     assert!(manifest.contains("CRAFT_I18N_DIR: /run/build/wordcraft/craft-i18n"), "the build embeds the catalogs");
 }

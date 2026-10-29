@@ -154,6 +154,15 @@ impl WordApp {
     /// Install the interface fonts when the language, the CJK fallback, or a caption fallback
     /// face has changed since the last install.
     pub(super) fn install_ui_fonts(&mut self, ctx: &egui::Context, lang: i18n::Lang) {
+        if !self.styled
+            && let Some(thai) = i18n::Lang::from_code("th")
+        {
+            let text: String = thai.catalog_texts().flat_map(str::chars).filter(|c| ('\u{0e00}'..='\u{0e7f}').contains(c)).collect();
+            let new = theme::faces_for_preedit(&text, &self.canvas.ime_faces, theme::caption_char_covered, |c| {
+                wordcraft_fonts::FontDb::global().fallback_for(c, u32::MAX)
+            });
+            self.canvas.ime_faces.extend(new);
+        }
         let system_cjk = self.fonts_system_cjk || self.want_system_cjk || lang.uses_cjk();
         if !self.styled || lang.prefers_hans() != self.fonts_hans || lang.prefers_korean() != self.fonts_korean || system_cjk != self.fonts_system_cjk
         {
