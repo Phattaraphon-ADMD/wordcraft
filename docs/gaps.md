@@ -42,6 +42,8 @@ Proofing robustness (security audit, #3613 part, #3661, #3657, #3625): installed
 
 Font-menu reliability: clearing a query with no matches now shows the recent section from its first row, including its heading, in a scrollable list. Fixed synthetic-family widget and full-ribbon tests cover this case and matching-query controls (#2068).
 
+Thai text on the web uses an embedded Thai fallback when built with craft-fonts; builds without that optional checkout still need a user-supplied font.
+
 Additive paragraph spacing retains the full before-space after a section page break; ordinary overlapping spacing is unchanged. Other pagination gaps remain open.
 
 Exact line spacing keeps the run font baseline around tall equations; automatic and minimum spacing still grow for math. Other pagination gaps remain open.

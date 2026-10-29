@@ -167,6 +167,10 @@ wordcraft-cli run --script job.json                 # the same from a file: comm
 ```
 
 Web: `cd apps/wordcraft-web && trunk serve`, then open <http://127.0.0.1:8771/?sample>.
+To build the web app with Thai text and interface catalogs, clone
+`https://github.com/storytold/craft-fonts` and the craft-i18n repository above as sibling
+directories, then run `make web` from the WordCraft directory. The output is in `dist/web`.
+Set `CRAFT_FONTS_DIR` or `CRAFT_I18N_DIR` to use different checkout locations.
 
 ## For agents: CLI and MCP
 
