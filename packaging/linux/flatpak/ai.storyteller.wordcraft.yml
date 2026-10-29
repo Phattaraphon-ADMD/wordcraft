@@ -71,6 +71,6 @@ modules:
           - .flatpak-builder
       - type: git
         url: https://github.com/Phattaraphon-ADMD/craft-i18n
-        commit: 9205108cfdced5177706264038848b68b2422d2b
+        commit: 3b0e4e3d7acc6f008b099e1046e40f87d0070926
         dest: craft-i18n
       - cargo-sources.json
