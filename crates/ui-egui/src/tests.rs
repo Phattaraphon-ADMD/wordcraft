@@ -237,10 +237,13 @@ fn non_latin_file_name_is_drawn_in_the_caption() {
         ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).drop_without_applying_deltas();
     };
     let mut latin = app();
+    latin.session.path = Some("draft.docx".into());
+    frame(&mut latin);
+    let initial_faces = latin.canvas.ime_faces.len();
     latin.session.path = Some("report.docx".into());
     frame(&mut latin);
     assert!(!latin.want_system_cjk);
-    assert!(latin.canvas.ime_faces.is_empty(), "a Latin name needs no extra face");
+    assert_eq!(latin.canvas.ime_faces.len(), initial_faces, "a Latin name needs no extra face");
 
     let mut hebrew = app();
     hebrew.session.path = Some("מסמך.docx".into());
@@ -254,10 +257,13 @@ fn non_latin_file_name_is_drawn_in_the_caption() {
     assert_eq!(hebrew.canvas.ime_faces.len(), n, "the face is added once");
 
     let mut cjk = app();
+    cjk.session.path = Some("draft.docx".into());
+    frame(&mut cjk);
+    let initial_faces = cjk.canvas.ime_faces.len();
     cjk.session.path = Some("文档.docx".into());
     frame(&mut cjk);
     assert!(cjk.want_system_cjk, "a CJK file name loads the CJK UI font");
-    assert!(cjk.canvas.ime_faces.is_empty(), "CJK collections are not copied into the fallback list");
+    assert_eq!(cjk.canvas.ime_faces.len(), initial_faces, "CJK collections are not copied into the fallback list");
 }
 
 /// File › Recover draws the recovered documents' names with the interface faces: a Chinese
@@ -310,11 +316,13 @@ fn arabic_comment_text_is_drawn_in_the_balloons() {
         ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).drop_without_applying_deltas();
     };
     let mut latin = app();
+    frame(&mut latin);
+    let initial_faces = latin.canvas.ime_faces.len();
     latin.run("text.insert", json!({"text": "Scope of works"})).unwrap();
     latin.run("select.text", json!({"text": "Scope"})).unwrap();
     latin.run("review.newComment", json!({"text": "Please check"})).unwrap();
     frame(&mut latin);
-    assert!(latin.canvas.ime_faces.is_empty(), "a Latin comment needs no extra face");
+    assert_eq!(latin.canvas.ime_faces.len(), initial_faces, "a Latin comment needs no extra face");
 
     let mut arabic = app();
     arabic.run("text.insert", json!({"text": "Scope of works"})).unwrap();
@@ -340,9 +348,11 @@ fn recent_documents_borrow_fallback_faces() {
         ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).drop_without_applying_deltas();
     };
     let mut latin = app();
+    frame(&mut latin);
+    let initial_faces = latin.canvas.ime_faces.len();
     latin.ui.recent.push("/home/ice/report.docx".into());
     frame(&mut latin);
-    assert!(latin.canvas.ime_faces.is_empty(), "a Latin file name needs no extra face");
+    assert_eq!(latin.canvas.ime_faces.len(), initial_faces, "a Latin file name needs no extra face");
 
     let mut arabic = app();
     arabic.ui.recent.push("/home/ice/نواقص 2026.docx".into());
@@ -367,10 +377,12 @@ fn georgian_find_text_is_drawn_in_the_navigation_pane() {
         ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).drop_without_applying_deltas();
     };
     let mut latin = app();
+    frame(&mut latin);
+    let initial_faces = latin.canvas.ime_faces.len();
     latin.run("text.insert", json!({"text": "This is some text"})).unwrap();
     latin.run("edit.find", json!({"text": "some text"})).unwrap();
     frame(&mut latin);
-    assert!(latin.canvas.ime_faces.is_empty(), "a Latin query and result need no extra face");
+    assert_eq!(latin.canvas.ime_faces.len(), initial_faces, "a Latin query and result need no extra face");
 
     let mut georgian = app();
     georgian.run("text.insert", json!({"text": "ეს არის ქართული ტექსტი"})).unwrap();
@@ -407,10 +419,12 @@ fn editing_beside_an_existing_match_still_gets_a_fallback_face() {
         ctx.run_ui(egui::RawInput::default(), |ui| app.logic(ui.ctx())).drop_without_applying_deltas();
     };
     let mut a = app();
+    frame(&mut a);
+    let initial_faces = a.canvas.ime_faces.len();
     a.run("text.insert", json!({"text": "Before some text After"})).unwrap();
     a.run("edit.find", json!({"text": "some text"})).unwrap();
     frame(&mut a);
-    assert!(a.canvas.ime_faces.is_empty(), "a Latin query and result need no extra face yet");
+    assert_eq!(a.canvas.ime_faces.len(), initial_faces, "a Latin query and result need no extra face yet");
 
     let before = a.session.find.results.clone();
     a.run("caret.docEnd", json!({})).unwrap();
